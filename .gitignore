@@ -1,0 +1,8 @@
+dist/
+build/
+__pycache__/
+*.apk
+*.p12
+*.keystore
+*.jks
+local.properties

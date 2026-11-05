@@ -1,0 +1,5 @@
+name=外屏助手
+description=Physical external display sessions, fullscreen apps, and display-scoped touchpad input.
+minApiVersion=101
+targetApiVersion=101
+staticScope=true

@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.codex.externaldisplay.input">
+<permission android:name="dev.codex.externaldisplay.input.permission.CONTROL" android:protectionLevel="signature"/>
+<uses-permission android:name="dev.codex.externaldisplay.input.permission.CONTROL"/>
+<queries><intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent></queries>
+<application android:icon="@mipmap/app_icon" android:roundIcon="@mipmap/app_icon" android:label="外屏助手" android:debuggable="false" android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar">
+<activity android:name="dev.codex.externaldisplay.probe.ControlActivity" android:configChanges="orientation|screenSize|smallestScreenSize" android:exported="true" android:resizeableActivity="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+<activity android:name="dev.codex.externaldisplay.probe.ProbeActivity" android:taskAffinity="dev.codex.externaldisplay.input.external" android:exported="true" android:resizeableActivity="true"/>
+</application></manifest>
