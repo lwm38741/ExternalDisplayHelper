@@ -20,6 +20,8 @@ public final class PhysicalDisplayHook extends XposedModule {
  private volatile boolean ready;
  private boolean restoreFailed;
  private volatile int douyinCastUid=-1;
+ private volatile boolean moonlightKeyboard;
+ private final ThreadLocal<Boolean> keyboardGate=new ThreadLocal<>();
  private Handler handler;
  private Class<?> logicalClass;
  private volatile android.os.IBinder owner;
@@ -64,8 +66,32 @@ public final class PhysicalDisplayHook extends XposedModule {
    });
    installDouyinPresentation(dms,loader);
    installGameAspectRatio(loader);
+   installMoonlightKeyboard(loader);
    Log.i(TAG,"hooks registered; session inactive");
   }catch(Throwable e){Log.e(TAG,"unsupported framework; inactive",e);}
+ }
+
+ private void installMoonlightKeyboard(ClassLoader loader){
+  try{
+   Class<?> flags=Class.forName("com.android.server.accessibility.Flags",false,loader);
+   Class<?> filter=Class.forName("com.android.server.accessibility.AccessibilityInputFilter",false,loader);
+   Method eventDisplay=android.view.InputEvent.class.getMethod("getDisplayId");
+   Method gate=method(flags,"ignoreInputEventsFromDisplayWithoutHandler");
+   Method input=method(filter,"onInputEventInternal",android.view.InputEvent.class,int.class);
+   hook(gate).intercept(chain->Boolean.TRUE.equals(keyboardGate.get())?false:chain.proceed());
+   hook(input).intercept(chain->{
+    Object event=chain.getArg(0);
+    if(!ready || owner==null || !moonlightKeyboard || !(event instanceof android.view.KeyEvent key))return chain.proceed();
+    boolean eligible;
+    try{eligible=MoonlightKeyboard.eligible(ready,owner!=null,moonlightKeyboard,
+      (Integer)eventDisplay.invoke(key),scope.displayId(),key.getDeviceId(),key.isFromSource(android.view.InputDevice.SOURCE_KEYBOARD));}
+    catch(Exception e){return chain.proceed();}
+    if(!eligible)return chain.proceed();
+    Boolean previous=keyboardGate.get();keyboardGate.set(true);
+    try{return chain.proceed();}finally{if(previous==null)keyboardGate.remove();else keyboardGate.set(previous);}
+   });
+   Log.i(TAG,"Moonlight keyboard missing-handler gate hook registered; session scoped");
+  }catch(Throwable e){Log.e(TAG,"Moonlight keyboard hook unavailable; original retained",e);}
  }
 
  private void installGameAspectRatio(ClassLoader loader){
@@ -253,6 +279,7 @@ public final class PhysicalDisplayHook extends XposedModule {
     }
     if(!matches(d))throw new IllegalArgumentException("not a matching live physical display");
     douyinCastUid=castUid;
+    moonlightKeyboard=token!=null && component!=null && "com.limelight.qiin".equals(component.getPackageName());
     if(token==null)handler.postDelayed(expiry,120000);
     update(d,true);
     if(token!=null)handler.post(()->launchWhenReady(session,id,token,component,reply,SystemClock.uptimeMillis()+2500));
@@ -297,6 +324,7 @@ public final class PhysicalDisplayHook extends XposedModule {
  }
  private void requestEnd(String reason){long session=generation;handler.post(()->{if(generation==session)end(reason);});}
  private void end(String reason){
+  moonlightKeyboard=false;
   douyinCastUid=-1;
   if(lock==null)return;
   // Runs on the DMS handler, but task operations must never hold the DMS lock.

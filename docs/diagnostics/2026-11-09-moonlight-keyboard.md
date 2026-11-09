@@ -1,0 +1,9 @@
+# Moonlight external keyboard fix
+
+Baseline: be9357b. Device API 37, Moonlight V+ 12.14.19 (com.limelight.qiin). User confirms service enabled: internal display works, external fails; service disabled: external letters work but OS shortcuts do not reach stream.
+
+Read-only installed-code analysis: V+ KeyboardInputHandler discards direct nonvirtual keyboard events when KeyboardAccessibilityService.instance exists, expecting service callback. Installed framework AccessibilityInputFilter.onInputEventInternal bypasses filtering for a display without mEventHandler; Flags.ignoreInputEventsFromDisplayWithoutHandler returns true. Current accessibility dump lists KeyboardInterceptor on display 0 only. These code paths explain the observed contrast; no live per-key tracing collected.
+
+Candidate 1.1.1-keyboard: while a helper-owned physical external Moonlight session is active, only for hardware keyboard events explicitly addressed to that display, a thread-local gate temporarily returns false from this flag during the existing filter invocation. try/finally restores thread-local state; original KeyEvent, display and pipeline retained. Inactive, internal display, other apps, virtual input and mouse retain original behavior. No polling or extra input thread.
+
+135 policy checks pass; signed build and unified APK check pass. Installed over 1.1.0. User rebooted and reported the requested external keyboard/Win/Alt+Tab test normal on 2026-11-09. This verifies the tested device/app combination; other devices and Moonlight variants remain unverified. Release 1.1.1 uses the same implementation as the verified candidate. Revert by removing installMoonlightKeyboard, its call, session boolean and policy/tests, restoring baseline source; device downgrade may require uninstall, so preserve settings before rollback.
